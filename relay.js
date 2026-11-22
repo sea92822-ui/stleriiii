@@ -59,9 +59,15 @@ function start(port, log) {
       let m; try { m = JSON.parse(text); } catch (e) { return; }
       if (!m || typeof m !== 'object') return;
       const room = String(m.room || 'lan').slice(0, 40);
+      if (m.t === 'list') {
+        const out = [];
+        for (const [name, r] of rooms) out.push({ room: name, title: r.title, n: r.clients.size + 1, cap: r.cap, live: r.live ? 1 : 0 });
+        send({ t: 'rooms', rooms: out.slice(0, 50) }); return;
+      }
+      if (m.t === 'info' && c.role === 'host') { const r = rooms.get(c.room); if (r) { r.live = !!m.live; if (m.cap) r.cap = +m.cap | 0; } return; }
       if (m.t === 'host') {
         if (rooms.has(room)) { send({ t: 'err', m: 'Комната «' + room + '» уже занята' }); return; }
-        leave(); rooms.set(room, { host: c, clients: new Map() }); c.room = room; c.role = 'host';
+        leave(); rooms.set(room, { host: c, clients: new Map(), title: String(m.title || room).slice(0, 60), cap: +m.cap | 0 || 2, live: false }); c.room = room; c.role = 'host';
         send({ t: 'ok', id: c.id, role: 'host', ips: lanIPs() }); log('хост в комнате ' + room);
       } else if (m.t === 'join') {
         const r = rooms.get(room); if (!r) { send({ t: 'err', m: 'Комната «' + room + '» не найдена — хост ещё не создал бой' }); return; }
